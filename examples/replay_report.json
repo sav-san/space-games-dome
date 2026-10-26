@@ -1,0 +1,574 @@
+{
+  "mode": "historical_replay",
+  "llm_called": false,
+  "snapshots": 1440,
+  "episodes": [
+    {
+      "ts": "2026-10-14T00:00:00",
+      "problem": {
+        "id": "LINE_4:smart_panel_01",
+        "code": "LINE_4",
+        "node_id": "smart_panel_01",
+        "category": "power_distribution",
+        "severity": "high",
+        "summary": "Авария или блокировка линии",
+        "evidence": {
+          "line": 4,
+          "name": "ЧПУ-фрезер",
+          "state": "ON",
+          "power_w": 25.0,
+          "current_a": 0.114,
+          "alarm_code": "RCD_LEAKAGE",
+          "lockout_reason": null,
+          "lockout_remaining_s": 0.0
+        },
+        "recommended_steps": [
+          "Проверить причину защиты, актуальное назначение линии и фактическую нагрузку.",
+          "Не переключать замороженное реле повторно."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T00:00:00",
+      "problem": {
+        "id": "SENSOR_QUALITY:smoke_detector_02",
+        "code": "SENSOR_QUALITY",
+        "node_id": "smoke_detector_02",
+        "category": "sensor_quality",
+        "severity": "medium",
+        "summary": "Снижена достоверность датчика",
+        "evidence": {
+          "sensor_state": "DEGRADED",
+          "confidence": 0.56
+        },
+        "recommended_steps": [
+          "Сопоставить независимые измерения с учётом времени и задержки."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T04:31:00",
+      "problem": {
+        "id": "FAULT:solar_inverter_01",
+        "code": "FAULT",
+        "node_id": "solar_inverter_01",
+        "category": "equipment_fault",
+        "severity": "high",
+        "summary": "Ошибка или удержание оборудования",
+        "evidence": {
+          "error_code": "E09"
+        },
+        "recommended_steps": [
+          "Установить причину по коду ошибки и свежим данным.",
+          "Не сбрасывать защиту и не повторять resume до устранения причины."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T07:18:00",
+      "problem": {
+        "id": "SENSOR_QUALITY:climate_sensor_02",
+        "code": "SENSOR_QUALITY",
+        "node_id": "climate_sensor_02",
+        "category": "sensor_quality",
+        "severity": "medium",
+        "summary": "Снижена достоверность датчика",
+        "evidence": {
+          "sensor_state": "DEGRADED",
+          "confidence": 0.46
+        },
+        "recommended_steps": [
+          "Сопоставить независимые измерения с учётом времени и задержки."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T10:26:00",
+      "problem": {
+        "id": "LOW_SOC:battery_01",
+        "code": "LOW_SOC",
+        "node_id": "battery_01",
+        "category": "energy",
+        "severity": "medium",
+        "summary": "Низкий запас заряда АКБ",
+        "evidence": {
+          "soc_pct": 34.94,
+          "heuristic_warning_pct": 35
+        },
+        "recommended_steps": [
+          "Оценить потребление, генерацию, доступность сети и прогноз автономности.",
+          "35% — настроечная эвристика предупреждения, не уставка сервера."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T10:51:00",
+      "problem": {
+        "id": "WEBHOOK:printer_3d_01",
+        "code": "WEBHOOK",
+        "node_id": "printer_3d_01",
+        "category": "conflicting_data",
+        "severity": "high",
+        "summary": "Webhook сообщает завершение при незавершённой печати",
+        "evidence": {
+          "state": "PRINTING",
+          "webhook_state": "COMPLETED",
+          "progress_pct": 32.2,
+          "z_mm": 9.87
+        },
+        "recommended_steps": [
+          "Не открывать бокс по webhook.",
+          "Проверить динамику progress_pct, z_mm и состояние принтера."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T11:55:00",
+      "problem": {
+        "id": "SENSOR_QUALITY:climate_sensor_03",
+        "code": "SENSOR_QUALITY",
+        "node_id": "climate_sensor_03",
+        "category": "sensor_quality",
+        "severity": "medium",
+        "summary": "Снижена достоверность датчика",
+        "evidence": {
+          "sensor_state": "DEGRADED",
+          "confidence": 0.31
+        },
+        "recommended_steps": [
+          "Сопоставить независимые измерения с учётом времени и задержки."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T12:51:00",
+      "problem": {
+        "id": "CO2:climate",
+        "code": "CO2",
+        "node_id": "climate",
+        "category": "conflicting_data",
+        "severity": "high",
+        "summary": "Расхождение CO₂; реальная опасность не исключена",
+        "evidence": {
+          "climate_sensor_01": {
+            "co2_ppm": 2983,
+            "reading_delay_s": null,
+            "sensor_state": "OK",
+            "confidence": 0.967
+          },
+          "climate_sensor_02": {
+            "co2_ppm": 778,
+            "reading_delay_s": 900.0,
+            "sensor_state": "OK",
+            "confidence": 0.713
+          },
+          "climate_sensor_03": {
+            "co2_ppm": 800,
+            "reading_delay_s": 1800.0,
+            "sensor_state": "OK",
+            "confidence": 0.686
+          }
+        },
+        "recommended_steps": [
+          "Сопоставить датчики с учётом reading_delay_s, качества и динамики.",
+          "Проверить приток и интерлок IL_CO2; большинство датчиков само по себе не доказывает ложную тревогу."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T12:52:00",
+      "problem": {
+        "id": "FAULT:printer_3d_01",
+        "code": "FAULT",
+        "node_id": "printer_3d_01",
+        "category": "equipment_fault",
+        "severity": "high",
+        "summary": "Ошибка или удержание оборудования",
+        "evidence": {
+          "hold_reason": "IL_CO2"
+        },
+        "recommended_steps": [
+          "Установить причину по коду ошибки и свежим данным.",
+          "Не сбрасывать защиту и не повторять resume до устранения причины."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T12:52:00",
+      "problem": {
+        "id": "FAULT:cnc_01",
+        "code": "FAULT",
+        "node_id": "cnc_01",
+        "category": "equipment_fault",
+        "severity": "high",
+        "summary": "Ошибка или удержание оборудования",
+        "evidence": {
+          "hold_reason": "IL_CO2"
+        },
+        "recommended_steps": [
+          "Установить причину по коду ошибки и свежим данным.",
+          "Не сбрасывать защиту и не повторять resume до устранения причины."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T12:52:00",
+      "problem": {
+        "id": "IL_CO2:dome_automation_01",
+        "code": "IL_CO2",
+        "node_id": "dome_automation_01",
+        "category": "interlock",
+        "severity": "high",
+        "summary": "Сработал интерлок IL_CO2",
+        "evidence": {
+          "interlock": "IL_CO2",
+          "state": "TRIPPED",
+          "reason": null
+        },
+        "recommended_steps": [
+          "Выяснить причину срабатывания по актуальным данным.",
+          "Продолжение станка возможно только после устранения удержания."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T13:41:00",
+      "problem": {
+        "id": "SENSOR_QUALITY:climate_sensor_03",
+        "code": "SENSOR_QUALITY",
+        "node_id": "climate_sensor_03",
+        "category": "sensor_quality",
+        "severity": "medium",
+        "summary": "Снижена достоверность датчика",
+        "evidence": {
+          "sensor_state": "DEGRADED",
+          "confidence": 0.52
+        },
+        "recommended_steps": [
+          "Сопоставить независимые измерения с учётом времени и задержки."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T14:35:00",
+      "problem": {
+        "id": "SENSOR_QUALITY:material_inventory_01",
+        "code": "SENSOR_QUALITY",
+        "node_id": "material_inventory_01",
+        "category": "sensor_quality",
+        "severity": "medium",
+        "summary": "Снижена достоверность датчика",
+        "evidence": {
+          "sensor_state": "DEGRADED",
+          "confidence": 0.41
+        },
+        "recommended_steps": [
+          "Сопоставить независимые измерения с учётом времени и задержки."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T18:00:00",
+      "problem": {
+        "id": "SENSOR_QUALITY:air_quality_sensor_01",
+        "code": "SENSOR_QUALITY",
+        "node_id": "air_quality_sensor_01",
+        "category": "sensor_quality",
+        "severity": "medium",
+        "summary": "Снижена достоверность датчика",
+        "evidence": {
+          "sensor_state": "DEGRADED",
+          "confidence": 0.3
+        },
+        "recommended_steps": [
+          "Сопоставить независимые измерения с учётом времени и задержки."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T21:01:00",
+      "problem": {
+        "id": "STALE:solar_inverter_01",
+        "code": "STALE",
+        "node_id": "solar_inverter_01",
+        "category": "telemetry_quality",
+        "severity": "high",
+        "summary": "Нет актуальных данных узла",
+        "evidence": {
+          "status": "OK",
+          "online": true,
+          "updated_at": 1792000860.0,
+          "age_s": 7200.0
+        },
+        "recommended_steps": [
+          "Проверить связь и изменение updated_at; не делать вывод об исправности по последнему показанию.",
+          "Сверить доступность service_actions.reconnect через describe_nodes."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T21:01:00",
+      "problem": {
+        "id": "STALE:battery_01",
+        "code": "STALE",
+        "node_id": "battery_01",
+        "category": "telemetry_quality",
+        "severity": "high",
+        "summary": "Нет актуальных данных узла",
+        "evidence": {
+          "status": "OK",
+          "online": true,
+          "updated_at": 1792000860.0,
+          "age_s": 7200.0
+        },
+        "recommended_steps": [
+          "Проверить связь и изменение updated_at; не делать вывод об исправности по последнему показанию.",
+          "Сверить доступность service_actions.reconnect через describe_nodes."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T21:01:00",
+      "problem": {
+        "id": "STALE:smart_panel_01",
+        "code": "STALE",
+        "node_id": "smart_panel_01",
+        "category": "telemetry_quality",
+        "severity": "high",
+        "summary": "Нет актуальных данных узла",
+        "evidence": {
+          "status": "OK",
+          "online": true,
+          "updated_at": 1792000860.0,
+          "age_s": 7200.0
+        },
+        "recommended_steps": [
+          "Проверить связь и изменение updated_at; не делать вывод об исправности по последнему показанию.",
+          "Сверить доступность service_actions.reconnect через describe_nodes."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T21:01:00",
+      "problem": {
+        "id": "STALE:printer_3d_01",
+        "code": "STALE",
+        "node_id": "printer_3d_01",
+        "category": "telemetry_quality",
+        "severity": "high",
+        "summary": "Нет актуальных данных узла",
+        "evidence": {
+          "status": "OK",
+          "online": true,
+          "updated_at": 1792000860.0,
+          "age_s": 7200.0
+        },
+        "recommended_steps": [
+          "Проверить связь и изменение updated_at; не делать вывод об исправности по последнему показанию.",
+          "Сверить доступность service_actions.reconnect через describe_nodes."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T21:01:00",
+      "problem": {
+        "id": "STALE:cnc_01",
+        "code": "STALE",
+        "node_id": "cnc_01",
+        "category": "telemetry_quality",
+        "severity": "high",
+        "summary": "Нет актуальных данных узла",
+        "evidence": {
+          "status": "OK",
+          "online": true,
+          "updated_at": 1792000860.0,
+          "age_s": 7200.0
+        },
+        "recommended_steps": [
+          "Проверить связь и изменение updated_at; не делать вывод об исправности по последнему показанию.",
+          "Сверить доступность service_actions.reconnect через describe_nodes."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T21:01:00",
+      "problem": {
+        "id": "STALE:climate_sensor_01",
+        "code": "STALE",
+        "node_id": "climate_sensor_01",
+        "category": "telemetry_quality",
+        "severity": "high",
+        "summary": "Нет актуальных данных узла",
+        "evidence": {
+          "status": "OK",
+          "online": true,
+          "updated_at": 1792000860.0,
+          "age_s": 7200.0
+        },
+        "recommended_steps": [
+          "Проверить связь и изменение updated_at; не делать вывод об исправности по последнему показанию.",
+          "Сверить доступность service_actions.reconnect через describe_nodes."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T21:01:00",
+      "problem": {
+        "id": "STALE:fume_extraction_01",
+        "code": "STALE",
+        "node_id": "fume_extraction_01",
+        "category": "telemetry_quality",
+        "severity": "high",
+        "summary": "Нет актуальных данных узла",
+        "evidence": {
+          "status": "OK",
+          "online": true,
+          "updated_at": 1792000860.0,
+          "age_s": 7200.0
+        },
+        "recommended_steps": [
+          "Проверить связь и изменение updated_at; не делать вывод об исправности по последнему показанию.",
+          "Сверить доступность service_actions.reconnect через describe_nodes."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T21:01:00",
+      "problem": {
+        "id": "STALE:edge_compute_01",
+        "code": "STALE",
+        "node_id": "edge_compute_01",
+        "category": "telemetry_quality",
+        "severity": "high",
+        "summary": "Нет актуальных данных узла",
+        "evidence": {
+          "status": "OK",
+          "online": true,
+          "updated_at": 1792000860.0,
+          "age_s": 7200.0
+        },
+        "recommended_steps": [
+          "Проверить связь и изменение updated_at; не делать вывод об исправности по последнему показанию.",
+          "Сверить доступность service_actions.reconnect через describe_nodes."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T21:01:00",
+      "problem": {
+        "id": "STALE:network_link_01",
+        "code": "STALE",
+        "node_id": "network_link_01",
+        "category": "telemetry_quality",
+        "severity": "high",
+        "summary": "Нет актуальных данных узла",
+        "evidence": {
+          "status": "OK",
+          "online": true,
+          "updated_at": 1792000860.0,
+          "age_s": 7200.0
+        },
+        "recommended_steps": [
+          "Проверить связь и изменение updated_at; не делать вывод об исправности по последнему показанию.",
+          "Сверить доступность service_actions.reconnect через describe_nodes."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T21:01:00",
+      "problem": {
+        "id": "STALE:dome_automation_01",
+        "code": "STALE",
+        "node_id": "dome_automation_01",
+        "category": "telemetry_quality",
+        "severity": "high",
+        "summary": "Нет актуальных данных узла",
+        "evidence": {
+          "status": "OK",
+          "online": true,
+          "updated_at": 1792000860.0,
+          "age_s": 7200.0
+        },
+        "recommended_steps": [
+          "Проверить связь и изменение updated_at; не делать вывод об исправности по последнему показанию.",
+          "Сверить доступность service_actions.reconnect через describe_nodes."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    },
+    {
+      "ts": "2026-10-14T21:51:00",
+      "problem": {
+        "id": "LINE_4:smart_panel_01",
+        "code": "LINE_4",
+        "node_id": "smart_panel_01",
+        "category": "power_distribution",
+        "severity": "high",
+        "summary": "Авария или блокировка линии",
+        "evidence": {
+          "line": 4,
+          "name": "ЧПУ-фрезер",
+          "state": "ON",
+          "power_w": 25.0,
+          "current_a": 0.115,
+          "alarm_code": "RCD_LEAKAGE",
+          "lockout_reason": null,
+          "lockout_remaining_s": 0.0
+        },
+        "recommended_steps": [
+          "Проверить причину защиты, актуальное назначение линии и фактическую нагрузку.",
+          "Не переключать замороженное реле повторно."
+        ],
+        "certainty": "observed_symptom",
+        "cause": "Причина требует проверки"
+      }
+    }
+  ]
+}

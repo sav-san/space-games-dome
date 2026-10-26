@@ -1,0 +1,122 @@
+{
+  "sources_and_references_valid": true,
+  "llm_called": false,
+  "equipment_commands_sent": false,
+  "replay": [
+    {
+      "file": "telemetry (3)(1).jsonl",
+      "snapshots": 1440,
+      "from": "2026-10-18T00:00:00",
+      "to": "2026-10-18T23:59:00",
+      "signal_episodes": {
+        "LINE_1": 1,
+        "LINE_4": 1,
+        "FAULT": 2,
+        "LINE_6": 1,
+        "SENSOR_QUALITY": 1,
+        "NULL_temperature_c": 1,
+        "NULL_humidity_pct": 1,
+        "HAZARD": 1,
+        "IL_SMOKE": 1,
+        "LOW_SOC": 1
+      }
+    },
+    {
+      "file": "telemetry (3).jsonl",
+      "snapshots": 1440,
+      "from": "2026-10-13T00:00:00",
+      "to": "2026-10-13T23:59:00",
+      "signal_episodes": {
+        "IL_CONDENSATE": 1,
+        "FAULT": 8,
+        "LEAKAGE_RISE_4": 1,
+        "STALE": 37,
+        "LINE_4": 2,
+        "SENSOR_QUALITY": 2,
+        "LOW_SOC": 1
+      }
+    },
+    {
+      "file": "telemetry (6)(1).jsonl",
+      "snapshots": 1440,
+      "from": "2026-10-15T00:00:00",
+      "to": "2026-10-15T23:59:00",
+      "signal_episodes": {
+        "LINE_4": 1,
+        "SENSOR_QUALITY": 4,
+        "FAULT": 2,
+        "IL_CONDENSATE": 1,
+        "LINE_1": 1,
+        "LOW_SOC": 1,
+        "SOC_JUMP": 2,
+        "IL_LOAD_SHED": 1,
+        "STALE": 2
+      }
+    },
+    {
+      "file": "telemetry (6).jsonl",
+      "snapshots": 1440,
+      "from": "2026-10-14T00:00:00",
+      "to": "2026-10-14T23:59:00",
+      "signal_episodes": {
+        "LINE_4": 2,
+        "SENSOR_QUALITY": 6,
+        "FAULT": 3,
+        "LOW_SOC": 1,
+        "WEBHOOK": 1,
+        "CO2": 1,
+        "IL_CO2": 1,
+        "STALE": 10
+      }
+    },
+    {
+      "file": "telemetry (9).jsonl",
+      "snapshots": 1440,
+      "from": "2026-10-16T00:00:00",
+      "to": "2026-10-16T23:59:00",
+      "signal_episodes": {
+        "LINE_1": 2,
+        "LINE_4": 2,
+        "STALE": 36,
+        "FUEL_WATER": 1,
+        "SENSOR_QUALITY": 1,
+        "FAULT": 2,
+        "LOW_CO2_CONFLICT": 1,
+        "FAN_FAULT": 1
+      }
+    },
+    {
+      "file": "telemetry(1).jsonl",
+      "snapshots": 1440,
+      "from": "2026-10-12T00:00:00",
+      "to": "2026-10-12T23:59:00",
+      "signal_episodes": {
+        "SENSOR_QUALITY": 5,
+        "CRC_GROWTH": 1,
+        "NULL_temperature_c": 24,
+        "NULL_humidity_pct": 29,
+        "BOX_NULL": 11,
+        "IL_OVERCURRENT": 1
+      }
+    },
+    {
+      "file": "telemetry(2).jsonl",
+      "snapshots": 1440,
+      "from": "2026-10-17T00:00:00",
+      "to": "2026-10-17T23:59:00",
+      "signal_episodes": {
+        "LINE_1": 4,
+        "LINE_4": 4,
+        "FAN_FAULT": 1,
+        "FUEL_WATER": 4,
+        "STALE": 111,
+        "LEAKAGE_RISE_4": 1,
+        "LINK_FLAPS": 2,
+        "SENSOR_QUALITY": 1,
+        "IL_LOAD_SHED": 1,
+        "LOW_SOC": 1
+      }
+    }
+  ],
+  "note": "Эпизоды — сигналы правил, не размеченная точность диагностики. Поминутные снимки могут пропускать короткие события."
+}

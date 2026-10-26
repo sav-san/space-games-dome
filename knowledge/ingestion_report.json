@@ -1,0 +1,22 @@
+{
+  "input_files": 21,
+  "input_rows": 12566,
+  "base_chunks": 520,
+  "added_chunks": 686,
+  "total_chunks": 1206,
+  "new_types": {
+    "event_evidence": 186,
+    "operator_account": 9,
+    "telemetry_profile": 471,
+    "incident_case": 20
+  },
+  "dates": [
+    "2026-10-12",
+    "2026-10-13",
+    "2026-10-14",
+    "2026-10-15",
+    "2026-10-16",
+    "2026-10-17",
+    "2026-10-18"
+  ]
+}

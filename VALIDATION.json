@@ -1,0 +1,66 @@
+{
+  "unit_and_mock_integration_tests_passed": 14,
+  "historical_snapshots": 1440,
+  "rule_episodes": 25,
+  "live_dome_tested": false,
+  "real_deepseek_call_tested": false,
+  "knowledge_chunks": 520,
+  "mode": "diagnostic_only",
+  "gui_validation": {
+    "tests_total": 18,
+    "tests_passed": 18,
+    "tkinter_import": true,
+    "desktop_render_checked": false,
+    "real_kupol_connection": false,
+    "real_equipment_commands_sent": false,
+    "control_capabilities_source": "docs/01_API.md"
+  },
+  "v04": {
+    "tests": 29,
+    "passed": 29,
+    "live_equipment_test": false,
+    "visual_windows_test": false
+  },
+  "v05": {
+    "tests": 37,
+    "passed": 37,
+    "live_equipment_test": false,
+    "visual_windows_test": false
+  },
+  "v06": {
+    "tests": 45,
+    "passed": 45,
+    "live_api_test": false,
+    "original_failure_root_cause_confirmed": false
+  },
+  "v07": {
+    "tests": 52,
+    "passed": 52,
+    "retrieval_examples_top3": 7,
+    "retrieval_examples_passed": 7,
+    "source_references_validated": true,
+    "replay_snapshots": 10080,
+    "llm_real_test": false,
+    "live_equipment_test": false
+  },
+  "v08": {
+    "tests": 74,
+    "passed": 74,
+    "regressions": [
+      "chat_after_90_calls",
+      "no_success_cooldown",
+      "timeout_recovery",
+      "http_error_classification",
+      "chat_during_diagnosis",
+      "lights_while_cnc_running",
+      "idle_printer_while_cnc_running",
+      "current_stop_permissions",
+      "abort_then_power_off",
+      "per_line_switch_budget",
+      "multi_step_confirmation_and_cancel"
+    ],
+    "real_deepseek_called": false,
+    "real_equipment_commands_sent": false,
+    "visual_windows_test": false
+  }
+}
