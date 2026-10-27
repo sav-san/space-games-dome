@@ -1,6 +1,7 @@
 """Document 03 log payloads (no credentials, no full snapshots)."""
 import os
 from . import __version__
+from . import access
 
 
 def start_fields(interface):
@@ -19,6 +20,7 @@ def metrics(nodes,stamp):
 
 def expected(c,before):
     action=c['action'];value=c.get('value')
+    if action in access.ACTIONS:return access.expected(c)
     if action in ('line_on','line_off'):return {'line':value,'state':'ON' if action=='line_on' else 'OFF'}
     if action=='pause':return {'state':'PAUSED'}
     if action=='abort':return {'state':['IDLE','CANCELLED','STOPPED'],'hold_reason':None}
@@ -35,6 +37,7 @@ def expected(c,before):
 
 
 def observed(c,n):
+    if c['action'] in access.ACTIONS:return access.observed(c,n)
     if c['action'] in ('line_on','line_off'):
         line=next((x for x in n.get('lines',[]) if isinstance(x,dict) and x.get('line')==c['value']),None)
         return {'line':line,'updated_at':n.get('updated_at'),'status':n.get('status')}

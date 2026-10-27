@@ -86,5 +86,24 @@
     "real_deepseek_called": false,
     "real_equipment_commands_sent": false,
     "section_1_manual_confirmation_compliant": false
+  },
+  "v11": {
+    "tests": 113,
+    "passed": 113,
+    "new_access_tests": 13,
+    "real_deepseek_called": false,
+    "real_equipment_commands_sent": false,
+    "changes": [
+      "documented lock controls",
+      "direct FabLab requests",
+      "lock verification and audit",
+      "current catalog in GUI"
+    ]
+  },
+  "v12": {
+    "tests": 116,
+    "passed": 116,
+    "real_equipment_commands_sent": false,
+    "real_deepseek_called": false
   }
 }

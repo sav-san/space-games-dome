@@ -82,7 +82,7 @@ class Window:
         self.alerts=ScrolledText(alerts,wrap='word',font=('Segoe UI',11));self.alerts.pack(fill='both',expand=True)
         for severity,color in [('critical','#ff5a5a'),('high','#ff5a5a'),('medium','#ffab40'),('low','#ffe45c')]:self.alerts.tag_configure(severity,foreground=color,background='#252b34')
         control=ttk.Frame(tabs);tabs.add(control,text='Возможности API');self.controls=ScrolledText(control,wrap='word');self.controls.pack(fill='both',expand=True)
-        self.text(self.controls,'После подключения здесь появятся права из describe_nodes для принтера и ЧПУ. Для управления используйте вкладку чата.')
+        self.text(self.controls,'После подключения здесь появятся права из describe_nodes для принтера, ЧПУ, боксов и дверей. Для управления используйте вкладку чата.')
         chat=ttk.Frame(tabs);tabs.add(chat,text='Чат и управление');self.chat_tab=chat
         self.chat_view=ScrolledText(chat,wrap='word',state='disabled');self.chat_view.pack(fill='both',expand=True)
         self.plan_text=tk.StringVar(value='Нет подготовленной команды')
@@ -215,7 +215,7 @@ class Window:
             if tag in ('critical','high','medium','low'):self.alerts.tag_add(tag,f'{i}.0',f'{i}.end')
         n=len(self.data.get('issues',[])) if fresh else 0
         self.tabs.tab(self.alert_tab,text=f'Отклонения ({n}) и возможные причины')
-        catalog=[n for n in self.data.get('catalog',[]) if isinstance(n,dict) and n.get('node_id') in ('cnc_01','printer_3d_01')]
+        catalog=[n for n in self.data.get('catalog',[]) if isinstance(n,dict) and n.get('node_id') in ('cnc_01','printer_3d_01','thermal_insulation_01','thermal_insulation_02','access_control_01')]
         info='Текущий каталог describe_nodes. Это объявленные права, не проверка выполнения команд.\nУправление доступно в чате после подтверждения конкретной команды.\n\n'
         info+=json.dumps(catalog,ensure_ascii=False,indent=2) if catalog else 'Каталог устройств пока не получен или устройства не представлены.'
         info+='\n\nОстановка производства по текущему каталогу:\n'
@@ -223,6 +223,7 @@ class Window:
             node=next((x for x in catalog if x.get('node_id')==node_id),None)
             actions=[a for a in ('pause','abort') if node and a in node.get('controls',[])]
             info+=node_id+': '+(', '.join(actions) if actions else 'каталог не получен' if node is None else 'pause/abort сервером не предоставлены; нужен оператор или изменение серверных прав')+'\n'
+        info+='\nЗамки: set_lock для боксов, lock_door/unlock_door для дверей помещений — если есть в controls.\noperator_controls — физические действия оператора, не права агента. Разблокировка не означает физическое открытие дверцы.'
         self.text(self.controls,info)
         if not self.closing:self.root.after(500,self.poll)
 
