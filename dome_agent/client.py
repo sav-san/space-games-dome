@@ -33,17 +33,19 @@ class DomeClient:
     async def _request(self,kind,fields):
         rid=uuid.uuid4().hex
         req={'type':kind,'request_id':rid,**fields}
-        dec=self.log.write('decision',situation='Управление устройством' if kind=='control' else 'Чтение состояния интерфейса',cause='Запрос через API',confidence=1.0,evidence=[],plan=[kind],source='rules')
+        dec=(getattr(self,'control_decision_ref',None) if kind=='control' else None) or self.log.write('decision',situation='Управление устройством' if kind=='control' else 'Чтение состояния интерфейса',cause='Запрос через API',confidence=1.0,evidence=[],plan=[kind],source='rules')
         fut=asyncio.get_running_loop().create_future();self.pending[rid]=fut
         try:
             async with self.lock:
                 await asyncio.sleep(max(0,.3-(time.monotonic()-self.last_send)))
                 await self.ws.send(json.dumps(req));self.last_send=time.monotonic()
             response=await asyncio.wait_for(fut,10)
-            self.log.write('action',request=req,response=response,ref=dec)
+            action_ref=self.log.write('action',request=req,response=response,ref=dec)
+            if kind=='control':self.last_control_action_ref=action_ref
             return response
-        except Exception as e:
-            self.log.write('action',request=req,response={'success':False,'error':type(e).__name__},ref=dec)
+        except (Exception,asyncio.CancelledError) as e:
+            action_ref=self.log.write('action',request=req,response={'success':None,'error':type(e).__name__},ref=dec)
+            if kind=='control':self.last_control_action_ref=action_ref
             raise
         finally:self.pending.pop(rid,None)
 
@@ -72,8 +74,15 @@ class DomeClient:
         self.generation+=1
         async with websockets.connect(self.url,max_size=32*1024*1024,open_timeout=10,ping_interval=20,ping_timeout=20) as ws:
             self.ws=ws;self.log.write('connection',event='connected',details='WebSocket connected')
-            await ws.send(json.dumps({'type':'auth','key':self.key}))
-            auth=json.loads(await asyncio.wait_for(ws.recv(),10))
+            auth_req={'type':'auth','key':'[REDACTED]'}
+            dec=self.log.write('decision',situation='Авторизация в Куполе',cause='Начало сессии',confidence=1.0,evidence=[],plan=['auth'],source='rules')
+            try:
+                await ws.send(json.dumps({'type':'auth','key':self.key}))
+                auth=json.loads(await asyncio.wait_for(ws.recv(),10))
+                if not isinstance(auth,dict):raise ValueError('Invalid authentication response')
+                self.log.write('action',request=auth_req,response=auth,ref=dec)
+            except (Exception,asyncio.CancelledError) as e:
+                self.log.write('action',request=auth_req,response={'success':None,'error':type(e).__name__},ref=dec);raise
             if auth.get('type')!='auth_response' or auth.get('success') is not True:raise RuntimeError('Authentication rejected')
             self.role=auth.get('role');self.team=auth.get('team');self.catalog=[]
             self.log.write('connection',event='auth',role=self.role,team=self.team,details='authenticated')

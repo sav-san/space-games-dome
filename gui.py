@@ -37,7 +37,7 @@ def notifications(data):
     d=data.get('diagnosis')
     if d:
         lines += ['АНАЛИЗ DEEPSEEK — возможные причины, требуют проверки',
-                  'Снимок API: '+str(data.get('diagnosis_timestamp')),d.get('summary',''),'']
+                  'Снимок API: '+str(data.get('diagnosis_timestamp')),d.get('summary','')]+(['Набор признаков изменился после анализа; показаны только гипотезы по ещё активным признакам.'] if d.get('partial') else [])+['']
         for h in d.get('hypotheses',[]):
             lines += ['Возможная причина: '+h['cause'],
                       'Связанные признаки: '+', '.join(h['evidence_issue_ids']),
@@ -51,7 +51,7 @@ def notifications(data):
 
 class Window:
     def __init__(self, root):
-        self.root=root;self.events=queue.Queue(maxsize=1);self.stop=threading.Event();self.chat_inbox=queue.Queue();self.chat_output=queue.Queue();self.chat_cancel_event=threading.Event();self.plan=None;self.data={};self.last_event=0;self.closing=False
+        self.root=root;self.events=queue.Queue(maxsize=1);self.stop=threading.Event();self.chat_inbox=queue.Queue();self.chat_output=queue.Queue();self.chat_cancel_event=threading.Event();self.plan=None;self.data={};self.autonomy_disable_event=threading.Event();self.last_event=0;self.closing=False
         root.title('Купол — телеметрия и диагностика');root.geometry('1250x820');root.minsize(850,550)
         style=ttk.Style(root)
         style.configure('Telemetry.Treeview',background='#202630',fieldbackground='#202630',foreground='#e6edf3',rowheight=28)
@@ -83,7 +83,7 @@ class Window:
         for severity,color in [('critical','#ff5a5a'),('high','#ff5a5a'),('medium','#ffab40'),('low','#ffe45c')]:self.alerts.tag_configure(severity,foreground=color,background='#252b34')
         control=ttk.Frame(tabs);tabs.add(control,text='Возможности API');self.controls=ScrolledText(control,wrap='word');self.controls.pack(fill='both',expand=True)
         self.text(self.controls,'После подключения здесь появятся права из describe_nodes для принтера и ЧПУ. Для управления используйте вкладку чата.')
-        chat=ttk.Frame(tabs);tabs.add(chat,text='Чат и управление')
+        chat=ttk.Frame(tabs);tabs.add(chat,text='Чат и управление');self.chat_tab=chat
         self.chat_view=ScrolledText(chat,wrap='word',state='disabled');self.chat_view.pack(fill='both',expand=True)
         self.plan_text=tk.StringVar(value='Нет подготовленной команды')
         ttk.Label(chat,textvariable=self.plan_text,wraplength=1100).pack(fill='x',padx=5,pady=5)
@@ -92,6 +92,14 @@ class Window:
         ttk.Button(buttons,text='Отменить план / оставшиеся шаги',command=self.cancel_plan).pack(side='left')
         self.message=tk.StringVar();entry=ttk.Entry(chat,textvariable=self.message);entry.pack(fill='x',padx=4,pady=4);entry.bind('<Return>',lambda _:self.ask())
         ttk.Button(chat,text='Отправить',command=self.ask).pack(anchor='e')
+        from dome_agent.autonomy import enabled_default
+        self.auto_enabled=tk.BooleanVar(value=enabled_default())
+        if not self.auto_enabled.get():self.autonomy_disable_event.set()
+        def toggle_auto():
+            if self.auto_enabled.get():self.autonomy_disable_event.clear()
+            else:self.autonomy_disable_event.set()
+            self.append_chat('Автономность '+('включена' if self.auto_enabled.get() else 'выключена')+'. Уже отправленная команда может завершиться.')
+        ttk.Checkbutton(chat,text='Автономные действия при высокой уверенности (отчёты в чате)',variable=self.auto_enabled,command=toggle_auto).pack(anchor='w')
         ttk.Label(root,text='Показатели обновляются автоматически. Причины — гипотезы. Закрытие окна останавливает этого агента.').pack(pady=4)
         self.thread=threading.Thread(target=self.run,daemon=True);self.thread.start()
         root.protocol('WM_DELETE_WINDOW',self.close);root.after(200,self.poll)
@@ -108,7 +116,7 @@ class Window:
         try:
             log=Log(os.getenv('AGENT_LOG_DIR',str(ROOT/'logs')))
             log.write('start',agent='dome-diagnostic-agent',interface='tkinter')
-            args=SimpleNamespace(state=os.getenv('AGENT_STATE_DIR',str(ROOT/'state')),ui_callback=self.send,stop_event=self.stop,chat_inbox=self.chat_inbox,chat_output=self.chat_output.put,chat_cancel_event=self.chat_cancel_event)
+            args=SimpleNamespace(state=os.getenv('AGENT_STATE_DIR',str(ROOT/'state')),ui_callback=self.send,stop_event=self.stop,chat_inbox=self.chat_inbox,chat_output=self.chat_output.put,chat_cancel_event=self.chat_cancel_event,autonomy_disable_event=self.autonomy_disable_event)
             asyncio.run(live(args,log))
         except Exception as e:
             msg=log.clean(str(e)) if log else type(e).__name__
@@ -189,6 +197,8 @@ class Window:
             try:event=self.chat_output.get_nowait()
             except queue.Empty:break
             self.append_chat("Агент: "+event["text"])
+            if event.get("autonomous"):continue
+            if (event.get("plan") or {}).get("origin")=="proactive_proposal":self.tabs.select(self.chat_tab)
             self.plan=event.get("plan");self.confirm_button.configure(state="normal" if self.plan else "disabled")
             self.plan_text.set(("ПРОВЕРЬТЕ ПЛАН:\n"+"\n".join(f"{i}. {c['node_id']} → {c['action']} ({json.dumps(c.get('value'),ensure_ascii=False)}), задержка {c.get('delay_seconds',0)} с" for i,c in enumerate(self.plan.get('commands',[self.plan]),1))) if self.plan else "Нет новой команды на подтверждение")
         try:self.data=self.events.get_nowait();self.last_event=time.monotonic()
@@ -217,7 +227,7 @@ class Window:
         if not self.closing:self.root.after(500,self.poll)
 
     def close(self):
-        self.closing=True;self.chat_cancel_event.set();self.stop.set();self.status.set('Остановка агента…');self.wait_close()
+        self.closing=True;self.autonomy_disable_event.set();self.chat_cancel_event.set();self.stop.set();self.status.set('Остановка агента…');self.wait_close()
 
     def wait_close(self):
         if self.thread.is_alive():self.root.after(100,self.wait_close)

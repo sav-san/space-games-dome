@@ -49,18 +49,32 @@ class Log:
         Path(folder).mkdir(parents=True, exist_ok=True)
         self.run_id = dt.datetime.now().strftime('%Y%m%d-%H%M%S') + '-' + uuid.uuid4().hex[:8]
         self.seq = 0
+        self.dome_time = None
         self.secrets = [os.getenv(k) for k in ('DOME_KEY', 'DEEPSEEK_API_KEY') if os.getenv(k)]
         self.file = open(Path(folder) / ('agent_' + self.run_id + '.jsonl'), 'a', encoding='utf-8')
 
     def clean(self, v):
         if isinstance(v, dict):
-            return {k: ('[REDACTED]' if any(s in k.lower() for s in ('api_key', 'authorization', 'dome_key')) else self.clean(x)) for k,x in v.items()}
+            return {k: ('[REDACTED]' if (k.lower() in ('key','password','token') or any(s in k.lower() for s in ('api_key', 'authorization', 'dome_key'))) else self.clean(x)) for k,x in v.items()}
         if isinstance(v, list): return [self.clean(x) for x in v]
         if isinstance(v, str):
             for s in self.secrets: v = v.replace(s, '[REDACTED]')
         return v
 
     def write(self, kind, **fields):
+        # Shared required fields also cover GUI and fallback/error paths.
+        if kind=='start':
+            from .audit import start_fields
+            base=start_fields(fields.get('interface','console'));base['config'].update(fields.get('config',{}));fields={**base,**fields,'config':base['config']}
+        if kind=='decision':
+            fields={**dict(situation='Проверка состояния',cause='Причина не установлена',confidence=0.0,evidence=[],plan=[],source='rules'),**fields}
+            if fields['source'] not in ('rules','llm','rag','mixed'):
+                fields['origin']=fields['source'];fields['source']='rules'
+        if kind=='connection':fields={'details':'','role':None,'team':None,**fields}
+        if kind=='llm_call':fields={'prompt_tokens':None,'completion_tokens':None,'error':None,'summary':'Ответ не получен',**fields}
+        if kind=='action':
+            response=fields.get('response') or {};fields['response']={'success':None,'error':None,**response}
+        if self.dome_time is not None:fields.setdefault('dome_time',self.dome_time)
         self.seq += 1
         row = dict(fields, ts=dt.datetime.now().astimezone().isoformat(timespec='milliseconds'), run_id=self.run_id, seq=self.seq, kind=kind)
         self.file.write(json.dumps(self.clean(row), ensure_ascii=False, default=str) + '\n')

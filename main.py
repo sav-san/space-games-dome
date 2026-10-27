@@ -11,6 +11,7 @@ from dome_agent.core import Detector, Search, Log, env_file, save_json, number
 from dome_agent.llm import LLM
 from dome_agent.client import DomeClient
 from dome_agent.trends import Trends
+from dome_agent.audit import metrics
 
 ROOT=Path(__file__).resolve().parent
 
@@ -23,13 +24,26 @@ class Agent:
         self.trends=Trends();self.last_analysis_start=0
         self.next_analysis=0;self.last_timestamp=None;self.server_changed=time.monotonic()
 
+    def current_diagnosis(self):
+        """Гипотезы, всё ещё применимые к текущим признакам.
+        Точное совпадение набора признаков не требуется: LLM отвечает 10-60 с, и за это время
+        набор часто меняется (мерцают STALE/NULL/SENSOR_QUALITY). Показываем только гипотезы,
+        у которых хотя бы один признак-улика по-прежнему активен; остальные скрываем как устаревшие."""
+        d=self.ui_diagnosis
+        if not d or time.monotonic()-self.ui_diagnosis_time>=120:return None
+        if self.ui_signature==self.signature:return d
+        active={x['id'] for x in self.issues}
+        hyps=[h for h in d.get('hypotheses',[]) if isinstance(h,dict) and active & set(h.get('evidence_issue_ids',[]))]
+        return dict(d,hypotheses=hyps,partial=True) if hyps else None
+
     def emit_ui(self):
         if not self.ui_callback:return
         fresh=self.role=="team" and self.frame is not None and time.monotonic()-self.last_received<=15 and time.monotonic()-self.server_changed<=20
-        diagnosis=self.ui_diagnosis if fresh and self.ui_signature==self.signature and time.monotonic()-self.ui_diagnosis_time<120 else None
+        diagnosis=self.current_diagnosis() if fresh else None
         self.ui_callback({"role":self.role,"fresh":fresh,"frame":self.frame,"issues":self.issues if fresh else [],"catalog":self.catalog if self.role=="team" else [],"diagnosis":diagnosis,"diagnosis_timestamp":self.ui_stamp if diagnosis else None,"llm_status":self.ui_llm_status})
 
     def status(self,role,generation):
+        self.log.dome_time=None
         self.role=role;self.generation=generation;self.frame=None;self.last_received=0;self.issues=[];self.signature=None;self.last_timestamp=None
         self.trends=Trends();self.trend_stamp=None;self.trend_issues=[]
         self.ui_diagnosis=None;self.ui_llm_status='Ожидание анализа'
@@ -46,6 +60,8 @@ class Agent:
         if timestamp!=self.last_timestamp:self.server_changed=time.monotonic()
         self.last_timestamp=timestamp
         self.last_received=time.monotonic();self.generation=generation
+        game=m['data'].get('game_time') or {};hour=game.get('hour') if isinstance(game,dict) else None
+        self.log.dome_time=(f'{int(hour)%24:02d}:{int((hour%1)*60):02d}' if number(hour) else None)
         raw=m['data']['nodes']
         nodes={k:v for k,v in raw.items() if isinstance(k,str) and isinstance(v,dict)}
         self.issues=self.detector.analyze(nodes,timestamp)
@@ -61,12 +77,12 @@ class Agent:
             self.next_analysis=min(self.next_analysis,max(time.monotonic(),self.last_analysis_start+15))
         if sig!=self.signature or time.monotonic()-self.last_observation>=30:
             self.signature=sig;self.last_observation=time.monotonic()
-            self.log.write('observation',summary=f'Найдено признаков: {len(self.issues)}',metrics={'node_count':len(nodes),'server_timestamp':timestamp},anomalies=self.issues)
+            self.log.write('observation',summary=f'Найдено признаков: {len(self.issues)}',metrics=metrics(nodes,timestamp),anomalies=self.issues)
             self.publish()
         self.emit_ui()
 
     def publish(self):
-        report={'status':'diagnostic_only','current_telemetry':True,'received_at':dt.datetime.now().astimezone().isoformat(),'server_timestamp':self.frame['timestamp'],'game_time':self.frame['game_time'],'valid_for_seconds':15,'diagnostics':self.issues,'llm':None,'note':'Автодиагностика не управляет оборудованием; команды доступны отдельно через подтверждение в чате GUI.'}
+        report={'status':'bounded_autonomy' if os.getenv('AGENT_AUTONOMY','true').lower() in ('true','1','yes') else 'diagnostic_only','current_telemetry':True,'received_at':dt.datetime.now().astimezone().isoformat(),'server_timestamp':self.frame['timestamp'],'game_time':self.frame['game_time'],'valid_for_seconds':15,'diagnostics':self.issues,'llm':None,'note':'Ограниченная автономность имеет отдельный проверяемый исполнитель. Его действия и результаты — в autonomy_report и state/autonomy.json.'}
         save_json(self.state/'latest.json',report)
         print(f'[{report["received_at"]}] Признаков: {len(self.issues)}; '+ '; '.join(x['summary'] for x in self.issues[:3]),flush=True)
         return report
@@ -102,21 +118,21 @@ class Agent:
             self.log.write('decision',situation='Диагностика наблюдаемых отклонений',cause='Причины не подтверждены',confidence=0.5,evidence=captured[:8],plan=['Сопоставить данные с документацией и историей'],source='rag',rag_refs=ids)
             self.ui_llm_status="Анализ DeepSeek…";self.emit_ui()
             diagnosis=await self.llm.diagnose(captured,context,catalog,compact)
-            if self.role!='team' or gen!=self.generation or sig!=self.signature or time.monotonic()-self.last_received>15 or time.monotonic()-self.server_changed>20 or time.monotonic()-began>self.llm.timeout+10:
+            if self.role!='team' or gen!=self.generation or time.monotonic()-self.last_received>15 or time.monotonic()-self.server_changed>20 or time.monotonic()-began>self.llm.timeout+10:
                 self.ui_llm_status='Снимок изменился; ожидание нового анализа';self.emit_ui()
                 self.log.write('error',where='diagnosis',error='Snapshot superseded; result not published');continue
             self.ui_diagnosis=diagnosis;self.ui_diagnosis_time=time.monotonic();self.ui_signature=sig;self.ui_stamp=stamp
-            self.ui_llm_status="Ответ DeepSeek получен" if diagnosis else (self.llm.last_diagnosis_error or "Ответ диагностики не получен")+"; работают локальные правила"
+            self.ui_llm_status=("Ответ DeepSeek получен"+("; набор признаков изменился, показаны только актуальные гипотезы" if sig!=self.signature else "")) if diagnosis else (self.llm.last_diagnosis_error or "Ответ диагностики не получен")+"; работают локальные правила"
             self.emit_ui()
             report=self.publish()
-            report.update(rag_refs=ids,diagnosis_as_of_timestamp=stamp,llm=diagnosis,llm_status='ok' if diagnosis else 'error',llm_error=self.llm.last_diagnosis_error)
+            report.update(rag_refs=ids,diagnosis_as_of_timestamp=stamp,llm=self.current_diagnosis(),llm_status='ok' if diagnosis else 'error',llm_error=self.llm.last_diagnosis_error)
             save_json(self.state/'latest.json',report)
             self.log.write('decision',situation=(diagnosis or {}).get('summary','Локальные диагностические рекомендации'),cause='Гипотезы; требуется проверка',confidence=0.5,evidence=captured[:8],plan=(diagnosis or {}).get('hypotheses',[x['recommended_steps'] for x in captured[:8]]),source='mixed' if diagnosis else 'rules',rag_refs=ids)
             if diagnosis:print('DeepSeek: '+diagnosis['summary'],flush=True)
 
 
 async def live(args,log):
-    for key in ('DOME_URL','DOME_KEY','DEEPSEEK_API_KEY'):
+    for key in ('DOME_URL','DOME_KEY'):
         if not os.getenv(key):raise ValueError('Заполните '+key+' в .env')
     if not os.environ['DOME_URL'].startswith(('ws://','wss://')):raise ValueError('DOME_URL должен начинаться с ws:// или wss://')
     agent=Agent(log,ROOT/'knowledge/chunks.jsonl',args.state)
@@ -131,12 +147,21 @@ async def live(args,log):
         external=getattr(args,"stop_event",None)
         while not stop.is_set() and not (external and external.is_set()):
             await asyncio.sleep(.2)
-    chat_task=None
-    if getattr(args,'chat_inbox',None) is not None:
-        from dome_agent.chat import Chat
-        chat_task=asyncio.create_task(Chat(agent,client,args.chat_inbox,args.chat_output,getattr(args,'chat_cancel_event',None)).run())
-    tasks=[asyncio.create_task(client.run()),asyncio.create_task(agent.worker(client)),asyncio.create_task(wait_stop())]
-    if chat_task:tasks.insert(0,chat_task)
+    import queue
+    import threading
+    from dome_agent.chat import Chat
+    from dome_agent.autonomy import Autonomy, enabled_default
+    inbox=getattr(args,'chat_inbox',None)
+    output=getattr(args,'chat_output',None) or (lambda event:print(event['text'],flush=True))
+    executor=Chat(agent,client,inbox if inbox is not None else queue.Queue(),output,getattr(args,'chat_cancel_event',None))
+    disabled=getattr(args,'autonomy_disable_event',None) or threading.Event()
+    if not enabled_default():disabled.set()
+    autonomy=Autonomy(agent,client,executor,output,disabled)
+    tasks=[asyncio.create_task(client.run()),asyncio.create_task(agent.worker(client)),asyncio.create_task(autonomy.run())]
+    if inbox is not None:
+        from dome_agent.proposals import Proposals
+        tasks.extend([asyncio.create_task(executor.run()),asyncio.create_task(Proposals(agent,client,executor).run())])
+    tasks.append(asyncio.create_task(wait_stop()))
     try:
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         for t in done:
@@ -172,7 +197,7 @@ def main():
     parser.add_argument('--replay',help='Локальный telemetry.jsonl; без сети и LLM')
     parser.add_argument('--state',default=os.getenv('AGENT_STATE_DIR',str(ROOT/'state')))
     args=parser.parse_args();log=Log(os.getenv('AGENT_LOG_DIR',str(ROOT/'logs')))
-    log.write('start',agent='dome-diagnostic-agent',version=__version__,models=[os.getenv('DEEPSEEK_MODEL','deepseek-v4-flash')],config={'mode':'replay' if args.replay else 'diagnostic_only','rag':'local_BM25'})
+    log.write('start',agent='dome-diagnostic-agent',version=__version__,models=[os.getenv('DEEPSEEK_MODEL','deepseek-v4-flash')],config={'mode':'replay' if args.replay else ('bounded_autonomy' if os.getenv('AGENT_AUTONOMY','true').lower() in ('true','1','yes') else 'diagnostic_only'),'rag':'local_BM25'})
     reason='normal'
     try:
         if args.replay:replay(args,log)

@@ -103,6 +103,8 @@ def verified(c,before,after):
         return after.get('state')==target and (action!='start_job' or after.get('file_name')==c['value'])
     if action=='home':return after.get('homed') is True and after.get('state') in ('IDLE','COMPLETED')
     if action in ('turn_on','turn_off'):
+        if c['node_id']=='equipment_cooling_01':
+            return after.get('state') in ('ON','RUNNING') and number(after.get('coolant_flow_l_min')) and after['coolant_flow_l_min']>0 if action=='turn_on' else after.get('state')=='OFF'
         target=action=='turn_on'
         fields=[k for k in ('running','enabled') if type(after.get(k)) is bool]
         return bool(fields) and all(after[k]==target for k in fields)
@@ -146,10 +148,10 @@ def constraints(agent,client):
 
 class Chat:
     def __init__(self,agent,client,inbox,out,cancel_event=None):
-        self.a=agent;self.c=client;self.inbox=inbox;self.out=out;self.pending=None;self.scheduled=None;self.history=[];self.line_times={};self.cancel_event=cancel_event or threading.Event()
-    def say(self,text,plan=None):self.out({'text':text,'plan':plan})
+        self.revision=0;self.proposal_meta=None;self.command_lock=asyncio.Lock();self.autonomous=False;self.a=agent;self.c=client;self.inbox=inbox;self.out=out;self.pending=None;self.scheduled=None;self.history=[];self.line_times={};self.cancel_event=cancel_event or threading.Event()
+    def say(self,text,plan=None):self.out({'text':text,'plan':plan,'autonomous':self.autonomous})
     async def ask(self,text):
-        self.pending=None
+        self.revision+=1;self.pending=None
         if not isinstance(text,str) or not text.strip() or len(text)>6000:raise ValueError('Сообщение должно содержать 1..6000 символов')
         llm=self.a.llm;gen=self.a.generation
         # Refresh rights from the server; a stale catalog must not invent stop permissions.
@@ -175,6 +177,7 @@ class Chat:
         self.say(result['answer'],plan)
 
     async def execute(self,c):
+        self.revision+=1
         guard(self.a,self.c,c)
         now=time.monotonic()
         if c['action'] in ('line_on','line_off'):
@@ -185,28 +188,50 @@ class Chat:
             recent=[t for t in self.line_times.get(key,[]) if now-t<120]
             if len(recent)>=3:raise ValueError('Защита реле: три переключения ЭТОЙ линии за 120 секунд уже отправлены. Другие линии доступны.')
             self.line_times[key]=recent+[now]
-        before=dict(self.a.frame['nodes'][c['node_id']]);stamp=self.a.frame['timestamp'];gen=self.a.generation
-        ref=self.a.log.write('decision',source='user_confirmed_chat',plan=c)
+        from .audit import expected, observed
+        before=json.loads(json.dumps(self.a.frame['nodes'][c['node_id']]));stamp=self.a.frame['timestamp'];gen=self.a.generation
+        meta=self.proposal_meta or {}
+        decision=self.a.log.write('decision',source='mixed' if self.autonomous or meta else 'rules',origin='autonomy' if self.autonomous else 'user_confirmed_chat',situation=meta.get('situation','Исполнение подтверждённой команды'),cause=meta.get('cause','Запрос пользователя'),confidence=meta.get('confidence',0.0),evidence=meta.get('evidence',[]),rag_refs=meta.get('rag_refs',[]),plan=[c],**({'ref':meta['proposal_ref']} if meta.get('proposal_ref') else {}))
+        self.c.control_decision_ref=decision;self.c.last_control_action_ref=None
+        response=None
+        def verification(ok,result):
+            ref=getattr(self.c,'last_control_action_ref',None)
+            # Real transport logs action itself; adapters must also preserve the chain.
+            if ref is None:
+                ref=self.a.log.write('action',request={'type':'control',**c},response=response or {'success':None,'error':result},ref=decision)
+                self.c.last_control_action_ref=ref
+            after=(self.a.frame or {}).get('nodes',{}).get(c['node_id'],{})
+            self.a.log.write('verification',ref=ref,expected=expected(c,before),observed=observed(c,after),ok=bool(ok),result=result)
         try:
-            response=await self.c.control(c['node_id'],c['action'],c['value'])
+            try:response=await self.c.control(c['node_id'],c['action'],c['value'])
+            except Exception:
+                verification(False,'unknown_after_send');self.say('Ответ не получен. Результат неизвестен; команда НЕ повторяется автоматически.');return False
+            if response.get('success') is not True:
+                verification(False,'server_rejected');self.say('Сервер отклонил команду: '+json.dumps(response,ensure_ascii=False));return False
+            self.say('Команда принята сервером. Проверяю новую телеметрию…')
+            for _ in range(40):
+                await asyncio.sleep(.5)
+                if self.cancel_event.is_set():
+                    verification(False,'user_cancelled_wait');self.say('Ожидание и оставшиеся шаги отменены. Уже отправленная команда могла выполниться; проверьте телеметрию.');return False
+                if self.a.generation!=gen or self.a.role!='team':break
+                frame=self.a.frame;after=(frame or {}).get('nodes',{}).get(c['node_id'],{})
+                if frame and frame['timestamp']>stamp and number(after.get('updated_at')) and after['updated_at']>before.get('updated_at',0) and after.get('online') is True and after.get('status')!='UNKNOWN' and not node_time_error(after,frame['timestamp'],getattr(getattr(self.a,'detector',None),'stale',20)) and verified(c,before,after):
+                    verification(True,'observed');self.say('Изменение подтверждено телеметрией.');return True
+            verification(False,'unconfirmed');self.say('За 20 секунд результат не подтверждён. Проверьте состояние; автоматического повтора нет.');return False
+        except asyncio.CancelledError:
+            verification(False,'cancelled_result_unknown');raise
         except Exception:
-            self.a.log.write('verification',ref=ref,result='unknown_after_send');self.say('Ответ не получен. Результат неизвестен; команда НЕ повторяется автоматически.');return False
-        if response.get('success') is not True:
-            self.a.log.write('verification',ref=ref,result='server_rejected')
-            self.say('Сервер отклонил команду: '+json.dumps(response,ensure_ascii=False));return False
-        self.say('Команда принята сервером. Проверяю новую телеметрию…')
-        for _ in range(40):
-            await asyncio.sleep(.5)
-            if self.cancel_event.is_set():
-                self.a.log.write('verification',ref=ref,result='user_cancelled_wait')
-                self.say('Ожидание и оставшиеся шаги отменены. Уже отправленная команда могла выполниться; проверьте телеметрию.');return False
-            if self.a.generation!=gen or self.a.role!='team':break
-            frame=self.a.frame;after=(frame or {}).get('nodes',{}).get(c['node_id'],{})
-            if frame and frame['timestamp']>stamp and number(after.get('updated_at')) and after['updated_at']>before.get('updated_at',0) and verified(c,before,after):
-                self.a.log.write('verification',ref=ref,result='observed',metrics=after);self.say('Изменение подтверждено телеметрией.');return True
-        self.a.log.write('verification',ref=ref,result='unconfirmed');self.say('За 20 секунд результат не подтверждён. Проверьте состояние; автоматического повтора нет.');return False
+            verification(False,'verification_error');raise
+        finally:self.c.control_decision_ref=None
 
     async def execute_plan(self,plan):
+        async with self.command_lock:
+            if plan.get('issue_signature') is not None and plan['issue_signature']!=issue_signature(self.a):raise ValueError('Ситуация изменилась; нужен новый план')
+            self.proposal_meta=({**plan['decision'],'proposal_ref':plan['decision_ref']} if plan.get('decision') and plan.get('decision_ref') else plan.get('decision'))
+            try:return await self._execute_plan(plan)
+            finally:self.proposal_meta=None
+
+    async def _execute_plan(self,plan):
         commands=plan.get('commands',[plan]);gen=self.a.generation
         for i,c in enumerate(commands,1):
             if self.cancel_event.is_set():self.say("Оставшиеся шаги отменены пользователем.");return
@@ -223,9 +248,12 @@ class Chat:
             try:event=self.inbox.get_nowait()
             except queue.Empty:event=None
             try:
+                if self.pending and (time.monotonic()-self.pending[1]>120 or self.pending[2]!=self.a.generation or (self.pending[0].get('issue_signature') is not None and self.pending[0]['issue_signature']!=issue_signature(self.a))):
+                    self.pending=None;self.say('Подготовленный план истёк или ситуация изменилась. Команды не отправлены.')
                 if event and event['kind']=='ask':await self.ask(event['text'])
-                elif event and event['kind']=='cancel':self.cancel_event.set();self.pending=None;self.scheduled=None;self.say('Подготовленный план и таймер отменены. Уже отправленную команду это не останавливает.')
+                elif event and event['kind']=='cancel':self.revision+=1;self.cancel_event.set();self.pending=None;self.scheduled=None;self.say('Подготовленный план и таймер отменены. Уже отправленную команду это не останавливает.')
                 elif event and event['kind']=='confirm':
+                    self.revision+=1
                     if not self.pending:raise ValueError('Нет подготовленного плана')
                     plan,created,gen=self.pending;self.pending=None
                     if plan['id']!=event['id'] or time.monotonic()-created>120 or gen!=self.a.generation:raise ValueError('План устарел, запросите заново')
@@ -244,3 +272,7 @@ class Chat:
             except Exception as e:
                 self.a.log.write('error',where='chat_command',error=type(e).__name__,details=self.a.log.clean(str(e)))
                 self.say('Не выполнено: '+self.a.log.clean(str(e)))
+
+
+def issue_signature(agent):
+    return sorted((x.get('id',''),x.get('severity','')) for x in agent.issues)

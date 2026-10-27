@@ -62,5 +62,29 @@
     "real_deepseek_called": false,
     "real_equipment_commands_sent": false,
     "visual_windows_test": false
+  },
+  "v09": {
+    "tests": 91,
+    "passed": 91,
+    "autonomy_tests": 10,
+    "real_deepseek_called": false,
+    "real_equipment_commands_sent": false,
+    "basis": "friend archive, 81 existing tests retained",
+    "autonomy_scope": [
+      "cooling turn_on",
+      "extraction turn_on",
+      "ventilation set_speed +10"
+    ],
+    "confidence_calibrated": false
+  },
+  "v10": {
+    "tests": 100,
+    "passed": 100,
+    "new_tests": 9,
+    "proactive_plans_without_execution": true,
+    "log_chain_validator": "tools/check_logs.py",
+    "real_deepseek_called": false,
+    "real_equipment_commands_sent": false,
+    "section_1_manual_confirmation_compliant": false
   }
 }
